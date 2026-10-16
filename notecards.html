@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notecards</title>
+<style>
+:root{
+  --bg:#efebe2; --side:#e7e2d6; --card:#fffdf8; --ink:#2a2824; --muted:#8b8578;
+  --line:#d9d2c2; --accent:#c0503a; --rule:#d6e3ee; --hover:#ddd6c6; --sel:#d3cab6;
+  --link:#2f6690; --missing:#a08f7a; --code:#f1ece1;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#1b1a18; --side:#211f1c; --card:#2a2825; --ink:#ebe6dc; --muted:#968f82;
+  --line:#3a3631; --accent:#e07a5f; --rule:#323a40; --hover:#2e2b27; --sel:#3a3631;
+  --link:#7fb3d9; --missing:#8f8270; --code:#34312c;
+}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
+button:hover{background:var(--hover)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{filter:brightness(1.08);background:var(--accent)}
+input{font:inherit;color:inherit}
+.hidden{display:none!important}
+
+aside{width:270px;flex:none;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.side-head{padding:12px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--line)}
+.folder{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.folder small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.folder:hover small{color:var(--accent)}
+#search{margin:10px 12px 6px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);outline:0}
+#list{flex:1;overflow:auto;padding:4px 6px 12px}
+.item{padding:7px 10px;border-radius:6px;cursor:pointer}
+.item:hover{background:var(--hover)}
+.item.on{background:var(--sel)}
+.item b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item span{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+main{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;overflow:hidden;padding:28px 20px}
+.card{width:100%;max-width:740px;height:100%;background:var(--card);border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.07);display:flex;flex-direction:column;position:relative;min-height:0}
+.toolbar{display:flex;gap:2px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.toolbar button{border-color:transparent;min-width:32px;padding:4px 8px}
+.toolbar button.on{background:var(--sel)}
+.toolbar .sep{width:1px;height:18px;background:var(--line);margin:0 6px}
+#status{margin-left:auto;margin-right:6px;color:var(--muted);font-size:12px}
+#title{border:0;outline:0;background:transparent;font:600 22px/1.3 ui-serif,Georgia,"Times New Roman",serif;padding:18px 28px 10px;border-bottom:2px solid var(--accent);width:100%}
+#body,#preview{flex:1;min-height:0;font:16px/28px ui-serif,Georgia,"Times New Roman",serif;padding:6px 28px 28px}
+#body{border:0;outline:0;resize:none;color:inherit;width:100%;overflow:auto;
+  background:repeating-linear-gradient(to bottom,transparent 0 27px,var(--rule) 27px 28px);
+  background-attachment:local;background-position:0 6px}
+#preview{overflow:auto}
+#preview h1,#preview h2,#preview h3{line-height:1.3;margin:14px 0 6px}
+#preview h1{font-size:22px} #preview h2{font-size:19px} #preview h3{font-size:17px}
+#preview p{margin:0 0 12px}
+#preview ul{margin:0 0 12px;padding-left:22px}
+#preview code{font:13px ui-monospace,Menlo,Consolas,monospace;background:var(--code);padding:1px 4px;border-radius:3px}
+a.wl{color:var(--link);text-decoration:none;border-bottom:1px solid currentColor;cursor:pointer}
+a.wl.missing{color:var(--missing);border-bottom-style:dashed}
+
+.empty{margin:auto;max-width:420px;text-align:center;color:var(--muted);padding:0 16px}
+.empty h1{font:600 28px ui-serif,Georgia,serif;color:var(--ink);margin:0 0 8px}
+.empty .btns{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+
+#picker{position:absolute;top:46px;left:14px;width:300px;max-width:calc(100% - 28px);background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.18);z-index:5;overflow:hidden}
+#pickIn{width:100%;border:0;border-bottom:1px solid var(--line);padding:9px 12px;outline:0;background:transparent}
+#pickList{max-height:260px;overflow:auto}
+#pickList div{padding:7px 12px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pickList div.on{background:var(--sel)}
+#pickList div i{color:var(--muted);font-style:normal}
+
+@media (max-width:720px){
+  body{flex-direction:column}
+  aside{width:auto;max-height:38vh;border-right:0;border-bottom:1px solid var(--line)}
+  main{padding:12px}
+}
+</style>
+</head>
+<body>
+<aside id="side" class="hidden">
+  <div class="side-head">
+    <div class="folder" id="folderName" title="Switch folder"></div>
+    <button class="primary" id="newBtn" title="New note (Alt+N)">+ New</button>
+  </div>
+  <input id="search" type="search" placeholder="Search notes" autocomplete="off">
+  <div id="list"></div>
+</aside>
+
+<main>
+  <div class="empty" id="welcome">
+    <h1>Notecards</h1>
+    <p id="welcomeMsg">Pick a folder on your computer. Every note is saved there as a plain Markdown file.</p>
+    <div class="btns">
+      <button class="primary" id="openBtn">Choose folder</button>
+      <button id="reopenBtn" class="hidden"></button>
+    </div>
+  </div>
+
+  <div class="empty hidden" id="noNote">
+    <p id="noNoteMsg">No note selected.</p>
+    <div class="btns"><button class="primary" id="newBtn2">New note</button></div>
+  </div>
+
+  <div class="card hidden" id="card">
+    <div class="toolbar">
+      <button data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+      <button data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+      <button data-cmd="heading" title="Heading (cycles H1 → H2 → H3 → none)">H</button>
+      <button data-cmd="list" title="Bullet list">•</button>
+      <button data-cmd="code" title="Inline code">&lt;/&gt;</button>
+      <span class="sep"></span>
+      <button data-cmd="link" title="Link to a note (Ctrl+K, or type [[)">[[ ]]</button>
+      <button data-cmd="preview" id="prevBtn" title="Preview (Ctrl+E)">Preview</button>
+      <span id="status"></span>
+      <button data-cmd="delete" title="Delete note">Delete</button>
+    </div>
+    <input id="title" placeholder="Title" spellcheck="false" autocomplete="off">
+    <textarea id="body" placeholder="Write…"></textarea>
+    <div id="preview" class="hidden"></div>
+    <div id="picker" class="hidden">
+      <input id="pickIn" placeholder="Link to note…" autocomplete="off">
+      <div id="pickList"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const ta = $('body'), ti = $('title'), pv = $('preview');
+let dir = null, notes = [], cur = null, timer = null, dirty = false;
+let previewOn = false, saving = Promise.resolve(), renaming = null, scanning = false;
+
+/* ---------- remember the chosen folder (IndexedDB) ---------- */
+function db(){ return new Promise((res, rej) => {
+  const r = indexedDB.open('notecards', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('kv');
+  r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+});}
+async function kvGet(k){ try{ const d = await db(); return await new Promise(r => {
+  const q = d.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => r(q.result); q.onerror = () => r(null);
+}); }catch{ return null } }
+async function kvSet(k, v){ try{ const d = await db(); d.transaction('kv','readwrite').objectStore('kv').put(v, k) }catch{} }
+
+/* ---------- folder ---------- */
+async function init(){
+  if (!('showDirectoryPicker' in window)){
+    $('welcomeMsg').textContent = 'This tool saves straight into a folder on your computer, which needs Chrome, Edge, Brave or another Chromium browser. Open this file in one of those.';
+    $('openBtn').classList.add('hidden'); return;
+  }
+  const h = await kvGet('dir');
+  if (h){
+    const rb = $('reopenBtn');
+    rb.textContent = 'Reopen “' + h.name + '”';
+    rb.classList.remove('hidden');
+    rb.onclick = () => useDir(h, true);
+  }
+}
+async function pickDir(){
+  try{ await useDir(await showDirectoryPicker({ id:'notecards', mode:'readwrite' }), false) }
+  catch(e){ if (e.name !== 'AbortError') alert(e.message) }
+}
+async function useDir(h, ask){
+  if (ask){
+    let p = await h.queryPermission({ mode:'readwrite' });
+    if (p !== 'granted') p = await h.requestPermission({ mode:'readwrite' });
+    if (p !== 'granted') return;
+  }
+  await commitTitle(); await flush();
+  dir = h; cur = null; kvSet('dir', h);
+  const f = $('folderName'); f.textContent = h.name;
+  const sm = document.createElement('small'); sm.textContent = 'Change folder'; f.append(sm);
+  $('welcome').classList.add('hidden'); $('side').classList.remove('hidden');
+  await scan();
+  notes.length ? openNote(notes[0]) : showNone();
+}
+async function scan(){
+  if (scanning) return; scanning = true;
+  try{
+    const out = [];
+    for await (const [name, h] of dir.entries()){
+      if (h.kind !== 'file' || !/\.md$/i.test(name) || name.startsWith('.')) continue;
+      const f = await h.getFile();
+      out.push({ name, handle:h, title:name.replace(/\.md$/i,''), text:await f.text(), mtime:f.lastModified });
+    }
+    out.sort((a, b) => b.mtime - a.mtime);
+    notes = out; renderList();
+  } finally { scanning = false }
+}
+
+/* ---------- list ---------- */
+const snippet = t => t.replace(/[#*`>\[\]]|^- /gm, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+function renderList(){
+  const q = $('search').value.trim().toLowerCase(), L = $('list');
+  L.innerHTML = '';
+  for (const n of notes){
+    if (q && !n.title.toLowerCase().includes(q) && !n.text.toLowerCase().includes(q)) continue;
+    const d = document.createElement('div'); d.className = 'item' + (n === cur ? ' on' : '');
+    const b = document.createElement('b'); b.textContent = n.title;
+    const s = document.createElement('span'); s.textContent = snippet(n.text) || 'Empty';
+    d.append(b, s); d.onclick = () => openNote(n); L.append(d);
+  }
+}
+const findNote = t => notes.find(n => n.title.toLowerCase() === t.trim().toLowerCase());
+
+/* ---------- open / new / delete ---------- */
+async function openNote(n){
+  await commitTitle(); await flush();
+  cur = n; ti.value = n.title; ta.value = n.text; dirty = false; status('');
+  $('noNote').classList.add('hidden'); $('card').classList.remove('hidden');
+  closePicker(); if (previewOn) renderPreview();
+  renderList();
+}
+function showNone(){
+  cur = null;
+  $('noNoteMsg').textContent = notes.length ? 'Pick a note or start a new one.' : 'This folder has no notes yet.';
+  $('card').classList.add('hidden'); $('noNote').classList.remove('hidden');
+  renderList();
+}
+const clean = s => s.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').replace(/^\.+/, '').trim().slice(0, 120) || 'Untitled';
+function uniqueTitle(t, except){
+  let x = t, i = 2;
+  while (notes.some(n => n !== except && n.name.toLowerCase() === (x + '.md').toLowerCase())) x = t + ' ' + i++;
+  return x;
+}
+async function newNote(title){
+  if (!dir) return;
+  await commitTitle(); await flush();
+  const t = uniqueTitle(clean(title || 'Untitled'));
+  const h = await dir.getFileHandle(t + '.md', { create:true });
+  await write(h, '');
+  const n = { name:t + '.md', handle:h, title:t, text:'', mtime:Date.now() };
+  notes.unshift(n); $('search').value = '';
+  if (previewOn) setPreview(false);
+  await openNote(n);
+  if (title) ta.focus(); else { ti.focus(); ti.select() }
+}
+async function del(){
+  if (!cur || !confirm('Delete “' + cur.title + '”?\nThis removes the file from the folder.')) return;
+  clearTimeout(timer); dirty = false; await saving;
+  const n = cur; cur = null;
+  try{ await dir.removeEntry(n.name) }catch(e){ alert('Could not delete: ' + e.message); cur = n; return }
+  notes = notes.filter(x => x !== n);
+  notes.length ? openNote(notes[0]) : showNone();
+}
+
+/* ---------- saving ---------- */
+function status(s){ $('status').textContent = s }
+async function write(h, text){ const w = await h.createWritable(); await w.write(text); await w.close() }
+function touch(){ dirty = true; status('Editing…'); clearTimeout(timer); timer = setTimeout(flush, 700) }
+function flush(){
+  clearTimeout(timer);
+  if (!dirty || !cur) return saving;
+  const n = cur, text = ta.value; dirty = false;
+  saving = saving.then(() => write(n.handle, text)).then(() => {
+    n.text = text; n.mtime = Date.now();
+    notes = [n, ...notes.filter(x => x !== n)];
+    if (n === cur && !dirty) status('Saved');
+    renderList();
+  }).catch(e => { console.error(e); dirty = true; status('Save failed') });
+  return saving;
+}
+async function moveFile(oldName, newName, text){
+  // two-step via a hidden temp file so case-only renames are safe on macOS/Windows
+  const tmp = '.renaming-' + Date.now() + '.md';
+  await write(await dir.getFileHandle(tmp, { create:true }), text);
+  await dir.removeEntry(oldName);
+  const h = await dir.getFileHandle(newName, { create:true });
+  await write(h, text);
+  await dir.removeEntry(tmp);
+  return h;
+}
+function commitTitle(){
+  if (!renaming) renaming = doRename().finally(() => { renaming = null });
+  return renaming;
+}
+async function doRename(){
+  const n = cur; if (!n || !dir) return;
+  let t = clean(ti.value);
+  if (t === n.title){ ti.value = t; return }
+  t = uniqueTitle(t, n); ti.value = t;
+  if (t === n.title) return;
+  await flush(); status('Renaming…');
+  saving = saving.then(async () => {
+    try{
+      const old = n.title;
+      n.handle = await moveFile(n.name, t + '.md', n.text);
+      Object.assign(n, { name:t + '.md', title:t, mtime:Date.now() });
+      // keep [[links]] in other notes pointing at the new name
+      const re = new RegExp('\\[\\[' + old.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\]\\]', 'gi');
+      let fixed = 0;
+      for (const o of notes){
+        if (o === n) continue;
+        const nt = o.text.replace(re, '[[' + t + ']]');
+        if (nt !== o.text){ o.text = nt; await write(o.handle, nt); fixed++ }
+      }
+      status(fixed ? `Renamed · updated ${fixed} link${fixed > 1 ? 's' : ''}` : 'Renamed');
+      renderList();
+    }catch(e){ console.error(e); status('Rename failed'); if (cur === n) ti.value = n.title }
+  });
+  await saving;
+}
+
+/* ---------- formatting ---------- */
+function ins(t){
+  ta.focus();
+  if (!t && ta.selectionStart === ta.selectionEnd) return;
+  const ok = t ? document.execCommand('insertText', false, t) : document.execCommand('delete');
+  if (!ok) ta.setRangeText(t, ta.selectionStart, ta.selectionEnd, 'end');
+  touch();
+}
+function wrap(m){
+  ta.focus();
+  const v = ta.value, s = ta.selectionStart, e = ta.selectionEnd, sel = v.slice(s, e);
+  if (v.slice(s - m.length, s) === m && v.slice(e, e + m.length) === m){
+    ta.setSelectionRange(s - m.length, e + m.length); ins(sel);
+    ta.setSelectionRange(s - m.length, e - m.length); return;
+  }
+  ins(m + sel + m);
+  ta.setSelectionRange(s + m.length, s + m.length + sel.length);
+}
+function editLines(fn){
+  ta.focus();
+  const v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+  const a = v.lastIndexOf('\n', s - 1) + 1;
+  let b = v.indexOf('\n', e); if (b < 0) b = v.length;
+  ta.setSelectionRange(a, b);
+  ins(fn(v.slice(a, b).split('\n')).join('\n'));
+}
+const heading = () => editLines(ls => ls.map(l => {
+  const m = l.match(/^(#{1,3}) /), lvl = m ? m[1].length : 0, rest = m ? l.slice(lvl + 1) : l;
+  return lvl === 3 ? rest : '#'.repeat(lvl + 1) + ' ' + rest;
+}));
+const list = () => editLines(ls => {
+  const all = ls.every(l => l.startsWith('- '));
+  return ls.map(l => all ? l.slice(2) : '- ' + l);
+});
+
+/* ---------- link picker ---------- */
+let pickTyped = false, pickIdx = 0, pickItems = [], pickSel = [0, 0];
+const picker = $('picker'), pickIn = $('pickIn'), pickList = $('pickList');
+function openPicker(typed){
+  if (previewOn) setPreview(false);
+  pickTyped = typed; pickSel = [ta.selectionStart, ta.selectionEnd];
+  pickIn.value = typed ? '' : ta.value.slice(pickSel[0], pickSel[1]).trim();
+  picker.classList.remove('hidden'); pickIdx = 0; renderPick(); pickIn.focus();
+}
+function closePicker(){ picker.classList.add('hidden') }
+function renderPick(){
+  const q = pickIn.value.trim().toLowerCase();
+  pickItems = notes.filter(n => n !== cur && n.title.toLowerCase().includes(q)).slice(0, 40).map(n => ({ t:n.title }));
+  if (q && !findNote(q)) pickItems.push({ t:pickIn.value.trim(), isNew:true });
+  pickIdx = Math.max(0, Math.min(pickIdx, pickItems.length - 1));
+  pickList.innerHTML = '';
+  pickItems.forEach((it, i) => {
+    const d = document.createElement('div'); if (i === pickIdx) d.className = 'on';
+    if (it.isNew){ const s = document.createElement('i'); s.textContent = 'New: '; d.append(s) }
+    d.append(it.t);
+    d.onmousedown = e => { e.preventDefault(); choose(it.t) };
+    pickList.append(d);
+  });
+}
+function choose(t){
+  closePicker(); ta.focus(); ta.setSelectionRange(...pickSel);
+  ins(pickTyped ? t + ']]' : '[[' + t + ']]');
+}
+pickIn.addEventListener('input', () => { pickIdx = 0; renderPick() });
+pickIn.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown'){ e.preventDefault(); pickIdx = Math.min(pickIdx + 1, pickItems.length - 1); renderPick() }
+  else if (e.key === 'ArrowUp'){ e.preventDefault(); pickIdx = Math.max(pickIdx - 1, 0); renderPick() }
+  else if (e.key === 'Enter'){ e.preventDefault(); if (pickItems[pickIdx]) choose(pickItems[pickIdx].t) }
+  else if (e.key === 'Escape'){ e.preventDefault(); closePicker(); ta.focus(); ta.setSelectionRange(...pickSel) }
+});
+pickIn.addEventListener('blur', () => setTimeout(closePicker, 120));
+
+/* ---------- preview ---------- */
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+function inline(s){
+  s = esc(s);
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
+  s = s.replace(/\[\[([^\]]+)\]\]/g, (m, t) => `<a class="wl${findNote(t) ? '' : ' missing'}" data-t="${t}">${t}</a>`);
+  return s;
+}
+function render(md){
+  const out = []; let inList = false, para = [];
+  const flushP = () => { if (para.length){ out.push('<p>' + para.map(inline).join('<br>') + '</p>'); para = [] } };
+  const closeL = () => { if (inList){ out.push('</ul>'); inList = false } };
+  for (const line of md.split('\n')){
+    let m;
+    if ((m = line.match(/^(#{1,3})\s+(.*)/))){ flushP(); closeL(); out.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`) }
+    else if ((m = line.match(/^\s*[-*]\s+(.*)/))){ flushP(); if (!inList){ out.push('<ul>'); inList = true } out.push('<li>' + inline(m[1]) + '</li>') }
+    else if (!line.trim()){ flushP(); closeL() }
+    else { closeL(); para.push(line) }
+  }
+  flushP(); closeL();
+  return out.join('');
+}
+function renderPreview(){ pv.innerHTML = render(ta.value) || '<p style="color:var(--muted)">Nothing here yet.</p>' }
+function setPreview(on){
+  previewOn = on; $('prevBtn').classList.toggle('on', on);
+  ta.classList.toggle('hidden', on); pv.classList.toggle('hidden', !on);
+  if (on){ closePicker(); renderPreview() } else ta.focus();
+}
+pv.addEventListener('click', e => {
+  const a = e.target.closest('a.wl'); if (!a) return;
+  const n = findNote(a.dataset.t);
+  n ? openNote(n) : newNote(a.dataset.t);
+});
+
+/* ---------- wiring ---------- */
+$('openBtn').onclick = pickDir;
+$('folderName').onclick = pickDir;
+$('newBtn').onclick = () => newNote();
+$('newBtn2').onclick = () => newNote();
+$('search').addEventListener('input', renderList);
+
+ti.addEventListener('change', commitTitle);
+ti.addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ e.preventDefault(); ta.focus() }
+  if (e.key === 'Escape' && cur){ ti.value = cur.title; ta.focus() }
+});
+
+ta.addEventListener('input', e => {
+  touch();
+  if (e.inputType === 'insertText' && e.data === '[' && ta.value.slice(ta.selectionStart - 2, ta.selectionStart) === '[[') openPicker(true);
+});
+ta.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.shiftKey || e.isComposing || ta.selectionStart !== ta.selectionEnd) return;
+  const v = ta.value, s = ta.selectionStart, a = v.lastIndexOf('\n', s - 1) + 1;
+  const m = v.slice(a, s).match(/^(\s*)- (.*)$/);
+  if (!m) return;
+  e.preventDefault();
+  if (!m[2].trim()){ ta.setSelectionRange(a, s); ins('') }   // empty bullet ends the list
+  else ins('\n' + m[1] + '- ');
+});
+
+document.querySelector('.toolbar').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const c = b.dataset.cmd;
+  if (previewOn && !['preview', 'delete', 'link'].includes(c)) setPreview(false);
+  ({ bold:() => wrap('**'), italic:() => wrap('*'), code:() => wrap('`'), heading, list,
+     link:() => openPicker(false), preview:() => setPreview(!previewOn), delete:del })[c]?.();
+});
+
+document.addEventListener('keydown', e => {
+  const mod = e.ctrlKey || e.metaKey;
+  if (e.altKey && !mod && e.code === 'KeyN' && dir){ e.preventDefault(); newNote(); return }
+  if (!mod || !cur) return;
+  const k = e.key.toLowerCase();
+  if (k === 's'){ e.preventDefault(); commitTitle().then(flush).then(() => { if (!dirty) status('Saved') }) }
+  else if (k === 'e'){ e.preventDefault(); setPreview(!previewOn) }
+  else if (document.activeElement === ta){
+    if (k === 'b'){ e.preventDefault(); wrap('**') }
+    else if (k === 'i'){ e.preventDefault(); wrap('*') }
+    else if (k === 'k'){ e.preventDefault(); openPicker(false) }
+  }
+});
+
+// pick up changes made outside the app (synced folders, other editors) when you come back
+window.addEventListener('focus', async () => {
+  if (!dir || dirty || renaming) return;
+  const name = cur?.name;
+  await saving; await scan();
+  const n = notes.find(x => x.name === name);
+  if (n){
+    cur = n;
+    if (ta.value !== n.text && !dirty){
+      const s = ta.selectionStart; ta.value = n.text; ta.setSelectionRange(s, s);
+      if (previewOn) renderPreview();
+    }
+    renderList();
+  } else if (name){ cur = null; notes.length ? openNote(notes[0]) : showNone() }
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) flush() });
+window.addEventListener('beforeunload', e => { if (dirty){ flush(); e.preventDefault(); e.returnValue = '' } });
+
+init();
+</script>
+</body>
+</html>
